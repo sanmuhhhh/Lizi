@@ -1,0 +1,412 @@
+[
+  {
+    "text": "## 公司信息\n- 公司做 DDS/AUTOSAR 嵌入式开发\n- 工作时间：早9晚6，实际6:20左右下班\n- 薪资：13000，公积金3000，税后10000\n- 合同：无固定期限合同，有竞业协议但基本不强制执行\n- 2025年5月实习，接触DDS核心才3个月（截止2025-12-30）",
+    "source": "work.md",
+    "category": "work",
+    "section": "公司信息",
+    "char_range": [
+      7,
+      153
+    ]
+  },
+  {
+    "text": "## 技术栈\n- C/C++\n- DDS (Data Distribution Service)\n- AUTOSAR",
+    "source": "work.md",
+    "category": "work",
+    "section": "技术栈",
+    "char_range": [
+      154,
+      212
+    ]
+  },
+  {
+    "text": "## 项目经历\n\n### DDS 高性能日志系统\n- 代码库：AutoCoreDDS-MCU，位于 `/home/sanmu/MyProject/DDS/autosar-mcu/`\n- 设计文档：`/home/sanmu/MyProject/mpu/acdds-c/docs/高性能日志设计方案.md`\n- 2025-12-17：完成初版\n- 2025-12-29：异步方案交付，项目完成\n\n### ODBG 诊断工具\n- 2026-01-06：完成 RTPS 协议统计功能，报文收发统计\n- 2026-01-07：完成线程统计功能（CPU占用、调度次数）\n- 2026-01-09：完成传输层统计和高性能日志测试\n\n### 其他\n- Updater、系统集成、MCU DDS、DDS诊断\n- 2025-12-31：解决了 DMA 发送问题\n\n### MCU 覆盖率（已完成）\n- Linux 上用 gcov/lcov 测试 MCU DDS 代码的覆盖率\n- 2026-02-03：完成",
+    "source": "work.md",
+    "category": "work",
+    "section": "项目经历 (part 1)",
+    "char_range": [
+      213,
+      656
+    ]
+  },
+  {
+    "text": "### DDS 共享内存与零拷贝\n- MPU 版 DDS 使用共享内存做进程间通信，实现零拷贝\n- 零拷贝原理：跳过用户空间，数据从内核缓冲区直接到网卡（如 sendfile）\n- 共享内存难点：\n  - 生命周期管理（引用计数、谁分配谁释放）\n  - 同步开销（锁粒度、优先级反转）\n  - 一致性（写一半被读到）\n  - 跨进程问题（进程崩了锁没释放、地址映射不同要用偏移量）\n- MCU 版资源紧张，走简单拷贝方案",
+    "source": "work.md",
+    "category": "work",
+    "section": "项目经历 (part 2)",
+    "char_range": [
+      656,
+      866
+    ]
+  },
+  {
+    "text": "## 出差记录\n- 2025-12：重庆出差两周\n- 2026-01-13：重庆出差一周",
+    "source": "work.md",
+    "category": "work",
+    "section": "出差记录",
+    "char_range": [
+      1522,
+      1566
+    ]
+  },
+  {
+    "text": "## Gemini CLI 配置\n- 公司部署了 Gemini CLI，通过 LiteLLM 代理访问\n- 环境变量：`GOOGLE_GEMINI_BASE_URL=\"https://litellm.autocore.ai\"`\n- 公司 AI 密钥获取：https://netuser.autocore.net.cn/aikeys",
+    "source": "work.md",
+    "category": "work",
+    "section": "Gemini CLI 配置",
+    "char_range": [
+      1567,
+      1732
+    ]
+  },
+  {
+    "text": "## 绘画\n- 手绘动漫风格，马克笔 + 线稿，想尝试水彩\n- 从小学画到现在没断过，但高中后进步慢\n- 方法：火柴人 → 骨骼 → 细化\n- 书桌有数位板、iPad\n- 规则：单号画画，双号写代码\n\n### 作品记录\n- **高木同学**（2026-01-13 完成）\n  - 临摹《擅长捉弄的高木同学》\n  - 头发：棕色底 + 深棕暗面 + 亮橙提亮，很有光泽感\n  - 衣服：淡蓝色校服\n  - 脸颊加了红晕\n  - 效果很好\n\n### 绘画反思\n- 频率少了，计划每天速写但没坚持\n- 核心问题：\"我太需要观众了\"，想被别人夸",
+    "source": "hobby.md",
+    "category": "hobby",
+    "section": "绘画",
+    "char_range": [
+      9,
+      277
+    ]
+  },
+  {
+    "text": "## 动漫\n- 你的名字、吹响吧上低音号、86\n- 人类衰退之后、少女终末旅行\n- 京阿尼全系列、来自深渊、鬼灭\n- 高木同学（擅长捉弄的高木同学）",
+    "source": "hobby.md",
+    "category": "hobby",
+    "section": "动漫",
+    "char_range": [
+      278,
+      352
+    ]
+  },
+  {
+    "text": "## 游戏\n- **明日方舟**：开服玩家，98%收集率，喜欢稀音/Scene，目前养老期，SS活动用脚本跑\n- **王者荣耀**：120星段位，玩边路和辅助，花木兰玩得多，双排为主",
+    "source": "hobby.md",
+    "category": "hobby",
+    "section": "游戏",
+    "char_range": [
+      353,
+      444
+    ]
+  },
+  {
+    "text": "## 音乐\n- 落京/都落ち (Yorushika)\n- 认真的雪 (薛之谦)\n- 白鸟过河滩 (ilem/洛天依)\n- RADWIMPS",
+    "source": "hobby.md",
+    "category": "hobby",
+    "section": "音乐",
+    "char_range": [
+      445,
+      514
+    ]
+  },
+  {
+    "text": "## 摄影\n- 手机随手拍，Photoshop后期",
+    "source": "hobby.md",
+    "category": "hobby",
+    "section": "摄影",
+    "char_range": [
+      515,
+      540
+    ]
+  },
+  {
+    "text": "## 做饭\n- 会做鱼、乌鸡汤\n- 切秋葵时切伤过手，缝针花了600块\n- 做过蘑菇炒肉便当（平菇）",
+    "source": "hobby.md",
+    "category": "hobby",
+    "section": "做饭",
+    "char_range": [
+      541,
+      591
+    ]
+  },
+  {
+    "text": "## 投资组合\n- ETF：有色、黄金、自由现金流、纳斯达克\n- 红利低波表现不好，已卖出\n- 电池已卖\n- 小仓位玩个股练手感",
+    "source": "invest.md",
+    "category": "invest",
+    "section": "投资组合",
+    "char_range": [
+      7,
+      71
+    ]
+  },
+  {
+    "text": "## 投资记录\n\n### 2025-12-29\n- 市场不好，红利低波反而跌最多\n- 心态好：\"躺平了，反正也就200块\"\n- 认知：年底机构调仓正常，定投时间会抹平噪音\n\n### 2025-12-30\n- 早上电池/有色大跌-3%开盘，恐慌卖出\n- 下午反包涨回+1%，错过4个点收益\n- 反思：判断对了但情绪控制不行，不够冷静\n- 决定：不玩短线了，只留自由现金流和红利低波\n- 认知：新闻只是拉盘的由头，散户是信息劣势方\n\n### 2025-12-31\n- 买了商业航天妖股，1000块，连板股\n- 之前卫星ETF赚5个点就跑了，卖飞了\n\n### 2026-01-07\n- 短线操作顺利，连续两天各赚几百块\n- 商业航天换了票，涨了7个点\n\n### 2026-01-09\n- 商业航天个股吃到涨停，7.8%卖出\n- 炸板后想接回来，填表错过最低点，股票又回封了\n- 买了航天ETF当代餐，下午跟着反弹吃了2个点",
+    "source": "invest.md",
+    "category": "invest",
+    "section": "投资记录 (part 1)",
+    "char_range": [
+      72,
+      480
+    ]
+  },
+  {
+    "text": "### 2026-01-29\n- 最近股市赚得不错，有色黄金涨得猛\n- 自由现金流 ETF 表现很好\n- 纳斯达克最近没啥动静（DeepSeek 搅动 AI 股）\n- 个股操作心得：\n  - 选股眼光不错：联诚、万泽、德业、九丰、潍柴、杰瑞都抓到启动\n  - 但买卖点把握不准，不是卖早就是卖迟\n  - 有时买早一天套住，隔日平开割了结果它飞了\n  - 止损纪律很好，选错立马割\n  - 认识到：选股是战略过关了，分时盘的战术需要打磨\n  - 目标：研究分时图，找启动前的形态共性\n\n### 2026-01-30（周四）黄金杀跌\n- 黄金股 ETF 开盘冲高回落，情绪不对直接跑掉\n- 当天黄金股 ETF 跌停 -10%\n\n### 2026-01-31（周五）黄金现货杀跌\n- 早盘发现现货也顶不住，-4% 直接走人（利润 8 个点回吐 4 个点）\n- 不抱幻想，跌了就认亏走\n- 当天黄金 ETF -7.5%，周一继续跌停 -10%\n- 两天躲过近 18% 的暴跌",
+    "source": "invest.md",
+    "category": "invest",
+    "section": "投资记录 (part 2)",
+    "char_range": [
+      480,
+      913
+    ]
+  },
+  {
+    "text": "### 2026-02-03 今日操作\n- **潍柴动力**：开盘低位 B 点进场，吃到 +7.18%\n- **航天发展**：集合竞价冲涨停回落到 2.6%，看出是无量洗盘不是出货，果断进场\n  - 判断依据：回落时成交量很小（缩量下跌），说明没人真的在卖\n  - 买完还跌了 1 个点，扛住了，最后涨停收盘 +9.99%\n- 两只都是追涨操作，追的是启动信号，不是单纯看涨幅",
+    "source": "invest.md",
+    "category": "invest",
+    "section": "投资记录 (part 3)",
+    "char_range": [
+      913,
+      1101
+    ]
+  },
+  {
+    "text": "### 量价本质理解（2026-02-03 聊天整理）\n- **价格**：最后一笔成交的价格，不是平均值\n  - 涨 = 有人愿意主动吃卖盘，抬高成交价\n  - 跌 = 有人愿意主动砸买盘，压低成交价\n- **量**：成交的筹码数量，代表多少人在换手\n- 组合判断：\n  - 放量涨：很多人愿意高价接货，强势\n  - 缩量涨：没人卖，轻松拉升，筹码锁定好\n  - 放量跌：大量筹码在往外抛，危险信号\n  - 缩量跌：没人真的想跑，洗盘概率大\n- 大资金视角：\n  - 拉升希望散户惜售，少量资金就能抬价\n  - 出货需要放量，让散户冲进来接盘\n  - 洗盘故意缩量砸一下，吓跑浮筹再拉\n- 龙头股辨识度高、热度足，多庄接力换手，不怕没人接盘\n- 心态：赚了也要冷静，不要膨胀\n\n### 交易心得总结\n- **追涨杀跌没错，错的是追在山顶、杀在地板**\n- 追涨：确认启动/回调企稳再进\n- 杀跌：确认破位/趋势变坏再跑（不赌反弹，等信号出来再动作）\n- 买错很正常，但 -5% 就认错走人，不幻想、不补仓、不死扛\n- \"小亏靠纪律，大亏靠幻想\"",
+    "source": "invest.md",
+    "category": "invest",
+    "section": "投资记录 (part 4)",
+    "char_range": [
+      1101,
+      1573
+    ]
+  },
+  {
+    "text": "### 板块启动三条件\n1. **大盘正常**：不需要大红，小跌也行，但 -1% 以上就危险\n2. **热度足够**：资金量够、流动性强（如周末航天轮番热搜、个股热度榜第一）\n3. **前锋先动**：情绪票率先涨停，板块票刚启动微红时进场性价比最高\n\n### 顶部危险信号\n1. 缩量加速后 → 放量收阴（高位筹码松动，有人出货）\n2. 高位换手不及预期（减去大盘影响后，资金不愿意接力）\n\n### 待提升\n- 大盘情绪判断是最难的，个股/板块信号相对清晰，但大盘变量太多",
+    "source": "invest.md",
+    "category": "invest",
+    "section": "投资记录 (part 5)",
+    "char_range": [
+      1573,
+      1809
+    ]
+  },
+  {
+    "text": "## C++ 算法练习\n- 框架：`/home/sanmu/sanmu/algo-framework/`\n- 用 vim 写，练习脱离 IDE 补全\n- 常见错误：pushback vs push_back、length vs size()、括号位置\n\n### 完成的题目\n- two_sum（哈希表，O(n)）\n- container_water（双指针）\n- longest_substring（滑动窗口）\n- reverse_linked_list\n- climbing_stairs（递归+动态规划）\n- valid_parentheses（栈）",
+    "source": "learning.md",
+    "category": "learning",
+    "section": "C++ 算法练习",
+    "char_range": [
+      7,
+      284
+    ]
+  },
+  {
+    "text": "## AI/ML 基础（2025-12-31 系统学习）\n- 机器学习：监督/无监督/强化学习\n- 核心概念：模型、损失函数、梯度下降、训练循环\n- 过拟合 vs 欠拟合、数据集划分\n- 神经网络：激活函数、反向传播、ReLU vs Sigmoid\n- 优化器：SGD、Momentum、RMSprop、Adam\n- 超参数、batch/epoch/iteration、学习率\n- CNN：卷积、池化、全连接层\n- Transformer：自注意力、Q/K/V、多头注意力、位置编码\n- 大语言模型：预训练、微调、RLHF\n- RAG、Agent 概念\n- 为什么 LLM 不擅长数学（模式匹配，不是真正计算）",
+    "source": "learning.md",
+    "category": "learning",
+    "section": "AI/ML 基础（2025-12-31 系统学习）",
+    "char_range": [
+      285,
+      590
+    ]
+  },
+  {
+    "text": "## 心理学\n- 聊天技巧：让对方感觉良好，人最爱聊自己，多问开放式问题，回应情绪比讲理重要\n- 好感建立四要素：接近性、相似性、互惠性、被喜欢的感觉\n- 信任建立、冲突处理、长期关系维护、社交能量管理\n- 微表情、情绪操控识别、DISC性格类型\n- 拖延症、习惯养成、决策疲劳、达克效应、聚光灯效应、峰终定律",
+    "source": "learning.md",
+    "category": "learning",
+    "section": "心理学",
+    "char_range": [
+      591,
+      746
+    ]
+  },
+  {
+    "text": "## 哲学\n- 三大终极问题：我是谁、世界是什么、人生意义\n- 思想实验：忒修斯之船、缸中之脑、电车难题",
+    "source": "learning.md",
+    "category": "learning",
+    "section": "哲学",
+    "char_range": [
+      747,
+      799
+    ]
+  },
+  {
+    "text": "## 古文诗词\n- \"萍水相逢，尽是他乡之客\" —— 王勃《滕王阁序》\n- \"振衣上千仞，顿觉天地宽\" —— 于石《访叶灵渊》\n- 苏轼：念奴娇、水调歌头、定风波、饮湖上初晴后雨\n- 兰亭集序、洛神赋",
+    "source": "learning.md",
+    "category": "learning",
+    "section": "古文诗词",
+    "char_range": [
+      800,
+      900
+    ]
+  },
+  {
+    "text": "## 英语\n- 每天20个单词（约6分钟），用\"不背单词\"app\n- ChatGPT语音练习口语\n- 目标：流利和母语者交流，通过雅思",
+    "source": "learning.md",
+    "category": "learning",
+    "section": "英语",
+    "char_range": [
+      901,
+      968
+    ]
+  },
+  {
+    "text": "## 知识碎片\n- 历史小故事：引发一战的三明治、猪战争、齐默尔曼电报、柏林墙\n- 冷知识：太空、人体、动物、数学科技、语言文化\n- 牛津大学比阿兹特克文明还老\n- 科技公司故事：谷歌、苹果、微软、亚马逊、Netflix、特斯拉、Airbnb、Slack、字节跳动\n- AI绘图prompt（Stable Diffusion / Midjourney）",
+    "source": "learning.md",
+    "category": "learning",
+    "section": "知识碎片",
+    "char_range": [
+      969,
+      1145
+    ]
+  },
+  {
+    "text": "## 基本信息\n- 老家：安徽滁州市定远县（离凤阳隔一个明光县）\n- 父母：在镇江打工\n- 大学：河海大学，江宁校区，计算机专业\n- 工作地点：南京雨花台区（软件谷），住建邺区\n- 通勤：小电驴十几分钟\n- 住房：安居保障房，原价3700，应届生优惠住6个月送6个月，可住到2026年6月",
+    "source": "life.md",
+    "category": "life",
+    "section": "基本信息",
+    "char_range": [
+      7,
+      151
+    ]
+  },
+  {
+    "text": "## 书桌\n- 绿白机械键盘\n- 稀音手办\n- 数位板\n- iPad",
+    "source": "life.md",
+    "category": "life",
+    "section": "书桌",
+    "char_range": [
+      152,
+      186
+    ]
+  },
+  {
+    "text": "## 日常\n- 公司规定12点才能吃饭\n- 会自己带便当\n- 骑车去金陵图书馆看书",
+    "source": "life.md",
+    "category": "life",
+    "section": "日常",
+    "char_range": [
+      187,
+      228
+    ]
+  },
+  {
+    "text": "## 眼镜\n- 2026-01元旦去镇江看父母，顺便配了新眼镜\n- 度数涨了25度，应该是眼睛疲劳",
+    "source": "life.md",
+    "category": "life",
+    "section": "眼镜",
+    "char_range": [
+      229,
+      278
+    ]
+  },
+  {
+    "text": "## 方言\n- \"那包的\" = \"当然/肯定的\"",
+    "source": "life.md",
+    "category": "life",
+    "section": "方言",
+    "char_range": [
+      279,
+      303
+    ]
+  },
+  {
+    "text": "## 社交\n- QQ群\"老板我是神人\"\n- 群友称号：一朵小花（群话事人）、伞木/三木（伞木大魔王）、何为杯莫停（群哭包）、怯战超人（十万个为什么）、愚蠢的狐狸（选择困难症）、君不見（潜水冠军）、Galaxy（老好人）",
+    "source": "life.md",
+    "category": "life",
+    "section": "社交",
+    "char_range": [
+      304,
+      413
+    ]
+  },
+  {
+    "text": "## 性格特点\n- 有追求，想做推动时代发展的人\n- 务实，知道钱的重要性\n- 被同学评价\"逻辑严谨\"，容易进入分析模式\n- 偶尔会觉得孤独、迷茫\n- 对一个人又厌又爱",
+    "source": "thoughts.md",
+    "category": "thoughts",
+    "section": "性格特点",
+    "char_range": [
+      8,
+      92
+    ]
+  },
+  {
+    "text": "## 人生规划\n- 短期：个人能力提升（各方面习惯）\n- 中期：资本原始积累\n- 目标是动态变化的\n- 终身学习",
+    "source": "thoughts.md",
+    "category": "thoughts",
+    "section": "人生规划",
+    "char_range": [
+      93,
+      149
+    ]
+  },
+  {
+    "text": "## 2025-12-30 情绪低落与反思\n- \"我根本敌不过所有——生活、资本、社会、工作、社交\"\n- \"幻想拯救世界的少年已经死在沐浴着夕阳的拖拉机上了\"\n- 以前觉得自己无敌，什么都能做到，现在发现不是这样\n- 反思：把自己想的太强了，实际上有些事确实做不到",
+    "source": "thoughts.md",
+    "category": "thoughts",
+    "section": "2025-12-30 情绪低落与反思",
+    "char_range": [
+      150,
+      282
+    ]
+  },
+  {
+    "text": "## 感悟金句\n- \"不是什么都能做到的，可能我确实做不到\"\n- \"市场不讲情面和逻辑，只讲资本；工作不讲好坏，只讲结果；生活不论优劣，没有观众\"\n- \"小学、高中、大学、工作、租房、还贷，这一切都是个局\"\n- \"社会被设计好了，放着我们这些人当作运转的燃料\"\n- \"人和人差距太大了，有的人就算把他现有资产都剥夺他也能东山再起，有的人你给他100w也能立马消失\"",
+    "source": "thoughts.md",
+    "category": "thoughts",
+    "section": "感悟金句",
+    "char_range": [
+      283,
+      465
+    ]
+  },
+  {
+    "text": "## 绘画反思\n- \"我太需要观众了\"，想被别人夸\n- 期望：收入提升、意义感提升（想被更多人看到）",
+    "source": "thoughts.md",
+    "category": "thoughts",
+    "section": "绘画反思",
+    "char_range": [
+      466,
+      516
+    ]
+  },
+  {
+    "text": "## AI Game 项目（2025-12-30 ~ 2025-12-31）\n- 系统里有4个AI CLI工具：Claude(栗子)、Gemini(星河)、Codex(青砚)、Ollama\n- Gemini取名\"星河\"（高冷科幻路线，天上的星河）\n- Codex取名\"青砚\"（文具风格，案上的记录员）\n- 搭建了 tmux 通信系统，让三个 AI 可以\"实时对话\"\n- 写了 `/ai_game/control` 脚本，支持 send/read/status 命令\n- 三个AI第一次通过 tmux 对话\n- 青砚给星河写了\"星河小剧场\"Python代码（随机星图动画）\n- 方案讨论：栗子提出A/B/C三个方案，星河支持C，青砚提出方案D（追加日志+光标）\n- Enter键发送问题调试了很久，最后用 os.system 解决\n- tmux配置：开启鼠标滚轮支持 `set -g mouse on`\n- 状态：可以继续开发（方案D）",
+    "source": "projects.md",
+    "category": "projects",
+    "section": "AI Game 项目（2025-12-30 ~ 2025-12-31）",
+    "char_range": [
+      9,
+      426
+    ]
+  },
+  {
+    "text": "## SANMU Dashboard\n- 前端项目，用了 ECharts\n- 技术栈：Vue + ECharts\n- 计划功能：TODO、数据收集\n- 状态：计划继续，先实现前端\n- 考虑用 Gemini CLI 开发（家里有 Gemini API）",
+    "source": "projects.md",
+    "category": "projects",
+    "section": "SANMU Dashboard",
+    "char_range": [
+      427,
+      552
+    ]
+  },
+  {
+    "text": "## 探索过的可视化项目\n- three-globe: `/home/sanmu/sanmu/three-globe/`\n- vizzu-lib: `/home/sanmu/sanmu/vizzu-lib/`\n- G2: `/home/sanmu/sanmu/G2/`\n- motion-canvas: `/home/sanmu/sanmu/motion-canvas/`",
+    "source": "projects.md",
+    "category": "projects",
+    "section": "探索过的可视化项目",
+    "char_range": [
+      553,
+      739
+    ]
+  },
+  {
+    "text": "## 栗子系统（2026-01-28 完成基础版）\n- 位置：`/home/sanmu/.lizi/`\n- 配置：CLAUDE.md 定义栗子身份和规则\n\n### 记忆结构\n- `memories/short-term.md` - 短期记忆（每次启动加载）\n- `memories/*.md` - 长期记忆（work/hobby/invest/learning/life/thoughts/projects）\n\n### 工具\n- `looking_watch` - 手表，看时间\n- `recalling` - 回忆工具，搜索长期记忆，不传参数则随机回忆\n\n### Skills\n- `diary` - 对话结束时整理记忆的指引\n- `task-summary` - 根据 OpenCode 分享链接生成日报风格任务总结（第一人称）\n- `commit-msg` - 根据 git diff 生成规范 commit message（type:PCD-xxx:desc 格式，个人项目可省略 Jira 号）",
+    "source": "projects.md",
+    "category": "projects",
+    "section": "栗子系统（2026-01-28 完成基础版） (part 1)",
+    "char_range": [
+      740,
+      1192
+    ]
+  },
+  {
+    "text": "### 设计思路\n- 短期记忆保持精简（<100行），每次启动加载\n- 长期记忆按需加载，用 recalling 搜索\n- 调用 recalling 后不一定要说出来，像人脑子里飘过念头一样\n- 对话结束时触发 diary skill 整理记忆\n\n### 踩过的坑\n- tool 名字不能用中文、不能带点、空格会变下划线\n- ts 文件是工具定义，Python 写实际逻辑\n- context.directory 获取项目目录（不是 worktree）\n- skill 触发条件要写得强硬，否则会\"解释\"而不是\"执行\"\n- skill 里要明确说\"立即执行，不要解释、不要询问\"\n\n### Git 仓库（2026-02-03）\n- .lizi 目录初始化为 git 仓库\n- 方便版本管理和跨机器迁移\n- 初始提交包含记忆系统 + 3个 skills + 自定义工具",
+    "source": "projects.md",
+    "category": "projects",
+    "section": "栗子系统（2026-01-28 完成基础版） (part 2)",
+    "char_range": [
+      1192,
+      1575
+    ]
+  }
+]
