@@ -6,3 +6,6 @@ memories/*.md
 memories/.index/*
 !memories/.gitkeep
 !memories/.index/.gitkeep
+
+# 加密的敏感信息
+secrets/
