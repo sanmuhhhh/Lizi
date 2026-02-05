@@ -9,8 +9,9 @@ export default tool({
     conversation: tool.schema.string().describe("当前对话的完整内容"),
   },
   async execute(args, context) {
+    const liziDir = path.join(os.homedir(), ".config/lizi")
     const venvPython = path.join(context.directory, ".opencode/.venv/bin/python3")
-    const script = path.join(context.directory, "tools/lizi_memorize.py")
+    const script = path.join(liziDir, "tools/lizi_memorize.py")
     
     const tmpFile = path.join(os.tmpdir(), `memorize-${Date.now()}.txt`)
     fs.writeFileSync(tmpFile, args.conversation, "utf-8")
