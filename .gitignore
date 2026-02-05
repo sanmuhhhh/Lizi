@@ -1,3 +1,8 @@
 node_modules
 .opencode
-memories
+
+# 忽略记忆内容，但保留目录结构
+memories/*.md
+memories/.index/*
+!memories/.gitkeep
+!memories/.index/.gitkeep
