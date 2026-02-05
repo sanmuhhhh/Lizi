@@ -64,3 +64,10 @@
 
 ### 栗子系统迁移（2026-02-05）
 - 伞木完成了栗子AI系统的迁移工作，将系统目录从 `~/.lizi` 迁移到了 `~/.config/opencode`，并修正了相关的 `zshrc` 配置、工具脚本路径（如 `memorize.ts` 等）以及虚拟环境设置，目前系统已在新目录下正常运行。
+
+### 栗子独立 Agent 架构（2026-02-05）
+- 栗子改为 OpenCode 原生 primary agent，可通过 Tab 键切换
+- 记忆数据存放在 ~/.config/lizi/memories/（独立目录）
+- 工具重命名为 lizi_* 前缀，全局禁用只对栗子启用
+- 最终采用方案 B：lizi 目录作为主 git 仓库，opencode 通过软链接引用
+- 模型: AutoCore/claude-opus-4-5，颜色: #FFDAB9（肤色）
