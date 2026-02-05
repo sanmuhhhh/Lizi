@@ -9,3 +9,4 @@ memories/.index/*
 
 # 加密的敏感信息
 secrets/
+__pycache__/

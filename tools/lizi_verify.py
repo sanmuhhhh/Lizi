@@ -33,28 +33,27 @@ def save_questions(data):
     VERIFY_FILE.write_bytes(encrypted)
 
 
-DECOY_OPTIONS = [
-    "1999年",
-    "2000年",
-    "2001年",
-    "南京",
-    "上海",
-    "北京",
-    "杭州",
-    "10000",
-    "12000",
-    "15000",
-    "20000",
-    "河海大学",
-    "南京大学",
-    "东南大学",
-    "软件工程",
-    "计算机科学",
-    "人工智能",
-    "建邺区",
-    "鼓楼区",
-    "玄武区",
-]
+DECOY_POOLS = {
+    "city": ["上海", "北京", "杭州", "苏州", "合肥", "武汉", "广州", "深圳"],
+    "county": ["凤阳县", "明光市", "天长市", "来安县", "全椒县"],
+    "university": ["南京大学", "东南大学", "南京航空航天大学", "南京理工大学"],
+    "date": ["8月15号", "10月1号", "3月20号", "12月25号", "5月4号"],
+    "color": ["红色", "蓝色", "黑色", "白色", "粉色", "紫色"],
+    "name": ["刘思琪", "王欣怡", "陈雨萱", "林佳琪", "周诗涵", "吴梦洁"],
+    "default": ["不确定", "想不起来", "好像是..."],
+}
+
+KEY_TO_POOL = {
+    "parents_city": "city",
+    "hometown": "county",
+    "university": "university",
+    "birthday": "date",
+    "favorite_color": "color",
+    "crush": "name",
+}
+
+
+PENDING_FILE = LIZI_DIR / "secrets" / "pending_verify.enc"
 
 
 def pick_questions(count: int = 3) -> dict:
@@ -73,9 +72,12 @@ def pick_questions(count: int = 3) -> dict:
 
     for q in picked:
         correct = q["answer"]
+        key = q["key"]
 
-        decoys = random.sample(DECOY_OPTIONS, 3)
-        decoys = [d for d in decoys if d.lower() != correct.lower()][:2]
+        pool_name = KEY_TO_POOL.get(key, "default")
+        pool = DECOY_POOLS.get(pool_name, DECOY_POOLS["default"])
+        decoys = [d for d in pool if d.lower() != correct.lower()]
+        decoys = random.sample(decoys, min(2, len(decoys)))
 
         options = [
             {"label": "不知道", "description": ""},
@@ -92,20 +94,121 @@ def pick_questions(count: int = 3) -> dict:
                 "custom": True,
             }
         )
-        answer_keys.append({"key": q["key"], "correct": correct})
+        answer_keys.append(
+            {"key": q["key"], "correct": correct, "aliases": q.get("aliases", [])}
+        )
 
-    return {"success": True, "questions": questions_for_ui, "answer_keys": answer_keys}
+    fernet = Fernet(get_key())
+    encrypted = fernet.encrypt(json.dumps(answer_keys).encode())
+    PENDING_FILE.parent.mkdir(parents=True, exist_ok=True)
+    PENDING_FILE.write_bytes(encrypted)
+
+    return {"success": True, "questions": questions_for_ui}
 
 
-def verify(answers: list, answer_keys: list) -> dict:
-    """验证答案（不透露哪个错）"""
+def normalize_answer(s: str) -> str:
+    s = s.strip().lower()
+    s = s.replace("月", "-").replace("号", "").replace("日", "")
+    s = s.replace("县", "").replace("市", "").replace("区", "")
+    return s
+
+
+def to_pinyin(s: str) -> str:
+    try:
+        from pypinyin import lazy_pinyin
+
+        return "".join(lazy_pinyin(s)).lower()
+    except:
+        return s.lower()
+
+
+def to_pinyin_initials(s: str) -> str:
+    try:
+        from pypinyin import lazy_pinyin
+
+        return "".join([p[0] for p in lazy_pinyin(s) if p]).lower()
+    except:
+        return s.lower()
+
+
+def get_initials_from_pinyin(s: str) -> str:
+    try:
+        from pypinyin import lazy_pinyin
+
+        return "".join([p[0] for p in lazy_pinyin(s) if p]).lower()
+    except:
+        pass
+
+    s = s.lower().strip()
+    initials = []
+    i = 0
+    while i < len(s):
+        if s[i].isalpha():
+            initials.append(s[i])
+            while i < len(s) and s[i].isalpha() and s[i] not in "aeiou":
+                i += 1
+            while i < len(s) and s[i].isalpha():
+                i += 1
+        else:
+            i += 1
+    return "".join(initials) if len(initials) > 1 else s
+
+
+def answers_match(user: str, correct: str) -> bool:
+    user_norm = normalize_answer(user)
+    correct_norm = normalize_answer(correct)
+    user_lower = user.strip().lower()
+    correct_lower = correct.strip().lower()
+
+    if user_norm == correct_norm:
+        return True
+    if to_pinyin(user) == to_pinyin(correct):
+        return True
+    if user_lower == correct_lower:
+        return True
+    if user_lower == to_pinyin(correct):
+        return True
+    if to_pinyin(user) == correct_lower:
+        return True
+    if user_lower == to_pinyin_initials(correct):
+        return True
+    if to_pinyin_initials(user) == to_pinyin_initials(correct):
+        return True
+    if user_lower == get_initials_from_pinyin(correct):
+        return True
+    return False
+
+
+def verify(answers: list) -> dict:
+    if not PENDING_FILE.exists():
+        return {"success": False, "message": "没有待验证的问题"}
+
+    try:
+        fernet = Fernet(get_key())
+        encrypted = PENDING_FILE.read_bytes()
+        decrypted = fernet.decrypt(encrypted)
+        answer_keys = json.loads(decrypted.decode())
+        PENDING_FILE.unlink()
+    except:
+        return {"success": False, "message": "验证数据已过期"}
+
     if len(answers) != len(answer_keys):
         return {"success": False, "message": "验证失败"}
 
     correct_count = 0
     for i, ak in enumerate(answer_keys):
         user_answer = answers[i][0] if answers[i] else ""
-        if user_answer.strip().lower() == ak["correct"].strip().lower():
+        correct = ak["correct"]
+        aliases = ak.get("aliases", [])
+
+        matched = answers_match(user_answer, correct)
+        if not matched:
+            for alias in aliases:
+                if answers_match(user_answer, alias):
+                    matched = True
+                    break
+
+        if matched:
             correct_count += 1
 
     if correct_count == len(answer_keys):
@@ -181,7 +284,7 @@ if __name__ == "__main__":
 
     elif mode == "verify":
         data = json.loads(sys.stdin.read())
-        result = verify(data["answers"], data["answer_keys"])
+        result = verify(data["answers"])
         print(json.dumps(result, ensure_ascii=False))
 
     elif mode == "setup":
