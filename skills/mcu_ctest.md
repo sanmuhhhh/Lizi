@@ -4,27 +4,13 @@
 
 ---
 
-## 0. 快速上手
+## 0. 工作流程
 
-```bash
-# 1. 查看目标文件当前覆盖率（使用 tool）
-mcu_coverage_report(file="<模块名>.c")
-
-# 2. 创建/编辑测试文件
-vim tests/<模块>_coverage.c
-
-# 3. 快速编译验证
-cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu/build
-cmake --build . --target cunit_Ddscp -j4 && ./bin/cunit_Ddscp -s <suite>
-
-# 4. 完整测试（耗时 2-5 分钟，用户执行，日志重定向避免污染上下文）
-cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu
-./scripts/test.sh --COVERAGE=on > /tmp/mcu_test.log 2>&1; echo "Exit code: $?"
-# Exit code 0 = 成功，非 0 = 失败（用 tail -100 /tmp/mcu_test.log 查看错误）
-
-# 5. 验证覆盖率
-mcu_coverage_report(file="<模块名>.c")
-```
+1. 查看当前覆盖率 → 定位未覆盖行/分支
+2. 查找相关测试文件 → 确定追加位置
+3. 编写测试用例 → 使用 stub 模拟依赖
+4. 快速编译验证 → 确认测试通过
+5. 完整测试 + 覆盖率 → 验证达标
 
 ---
 
@@ -175,48 +161,12 @@ CU_Test(q_entity_static, validate_qos_invalid_policy)
 
 ## 4. Phase 1: 分析覆盖率报告
 
-### 4.1 使用 mcu_coverage_report 工具（推荐）
+### 4.1 使用 mcu_coverage_report 工具
 
-> ⚠️ **必须使用此工具**：避免手动解析 HTML，减少上下文污染
-
-```
-mcu_coverage_report(file="ddsi_ownip.c")
-```
-
-**输出示例**：
-```json
-{
-  "file": "src/CDD/CDD_Dds/core/ddsi/src/ddsi_ownip.c",
-  "report_path": "public/codecov.ddsi_ownip.c.xxx.html",
-  "line_coverage": 97.1,
-  "function_coverage": 100.0,
-  "branch_coverage": 88.3,
-  "uncovered_line_count": 3,
-  "uncovered_branch_count": 5,
-  "uncovered_lines": [
-    {"line": 238, "source": "return 0;"},
-    {"line": 263, "source": "if (!gv->using_link_local_intf)"}
-  ],
-  "uncovered_branches": [
-    {"line": 142, "branch": "1", "info": "Branch 1 not taken."}
-  ]
-}
-```
-
-**直接获得**：
+使用注册的 `mcu_coverage_report` 工具查看覆盖率，返回结构化数据包含：
 - 覆盖率百分比（行/函数/分支）
-- 未覆盖行号 + 源码片段
-- 未覆盖分支位置
-
-### 4.2 手动定位（备用）
-
-```bash
-# 源文件 → 报告文件映射
-ls public/codecov.*<模块名>*.html
-
-# 提取未覆盖行号
-grep -B1 'uncoveredLine' public/codecov.<文件>.*.html | grep 'lineno'
-```
+- 未覆盖行号 + 源码片段 + 上下文
+- 未覆盖分支 + 所在函数名
 
 ### 4.3 优先级排序
 
@@ -226,6 +176,51 @@ grep -B1 'uncoveredLine' public/codecov.<文件>.*.html | grep 'lineno'
 4. **边界条件** - 空数组、最大值、溢出
 5. **else 分支** - 被忽略的反向逻辑
 6. **switch default** - 未匹配的 case
+
+### 4.4 未覆盖代码分析决策树
+
+```
+未覆盖行/分支是什么类型？
+│
+├─ 条件分支（if/else/switch）
+│   ├─ 错误返回路径（return -1, goto err）
+│   │   └─ Stub 依赖函数返回错误
+│   │      例: stub_malloc() 返回 NULL
+│   │
+│   ├─ NULL 检查分支
+│   │   └─ 传入 NULL 参数触发
+│   │
+│   ├─ 边界条件（size == 0, overflow）
+│   │   └─ 构造边界输入值
+│   │
+│   └─ 短路求值分支（&& / ||）
+│       └─ 通常需要多个测试覆盖不同组合
+│          注意: gcov 对 `a && b` 生成 4 个分支
+│
+├─ 错误处理标签（err_xxx:, cleanup:）
+│   └─ 需要触发前面的错误路径
+│      可能需要 Stub 多个函数
+│
+├─ 初始化代码（仅首次执行）
+│   └─ 确保测试环境未预初始化
+│      可能需要隔离测试进程
+│
+└─ 无法测试的代码
+    ├─ 硬件依赖 → 接受，记录原因
+    ├─ 平台特定 #ifdef → 接受
+    ├─ Stub 会导致死锁/崩溃 → 接受，记录原因
+    └─ 防御性代码（assert/unreachable）→ 接受
+```
+
+**分支类型速查**：
+
+| 代码模式 | gcov 分支数 | 覆盖方法 |
+|----------|-------------|----------|
+| `if (a)` | 2 | true/false 各一个测试 |
+| `if (a && b)` | 4 | a=false; a=true,b=false; a=true,b=true; 短路 |
+| `if (a \|\| b)` | 4 | 同上，短路逻辑相反 |
+| `a ? b : c` | 2 | true/false 各一个测试 |
+| `switch(x)` | N+1 | 每个 case + default |
 
 ---
 
@@ -257,15 +252,37 @@ grep -B1 'uncoveredLine' public/codecov.<文件>.*.html | grep 'lineno'
 
 ### 5.2 查找已有测试文件
 
-```bash
-ls tests/*<模块名>*.c
-grep -l "include.*<模块名>" tests/*.c
-```
+使用 `mcu_find_test_file` 工具查找相关测试文件。
 
 **决策规则**：
 - 已有 `_test.c` → 追加到该文件
 - 已有 `_coverage.c` → 追加到该文件
 - 都没有 → 创建新的 `<模块>_coverage.c`
+
+### 5.3 Source Include 限制
+
+> ⚠️ **在 `#include "源文件.c"` 后定义的测试可能无法正确注册**
+
+**问题现象**：
+- 符号存在于二进制中（`nm` 可见）
+- 但 `-t <test_name>` 无法运行
+- `-s <suite>` 显示 0 tests ran
+
+**原因**：
+CUnit 的 `CU_Test` 宏在编译时展开为静态构造函数。当 `#include` 源文件时，源文件中的符号可能与测试文件的符号发生冲突或覆盖，导致测试注册失败。
+
+**解决方案**：
+
+| 优先级 | 方案 | 适用场景 |
+|--------|------|----------|
+| 1 | 使用 extern 声明 STATIC 函数 | 函数已用 STATIC 宏 |
+| 2 | 将测试定义在 include 之前 | 必须 include 源文件时 |
+| 3 | 使用独立测试文件 | 避免符号污染 |
+
+**验证测试是否正确注册**：
+```bash
+mcu_list_tests(suite_filter="<你的suite名>")
+```
 
 ---
 
@@ -433,6 +450,53 @@ unset_stub(s2);  /* 后进先出 */
 unset_stub(s1);
 ```
 
+### 7.5 Stub 安全性参考
+
+> ⚠️ **某些函数 Stub 后会导致死锁或崩溃**
+
+**已知可安全 Stub 的函数**：
+
+| 函数 | 用途 | 示例 |
+|------|------|------|
+| `malloc` / `ddsrt_malloc` | 内存分配失败注入 | 返回 NULL 测试错误路径 |
+| `free` / `ddsrt_free` | 跟踪释放调用 | 验证资源清理 |
+| `ddsrt_getenv` | 环境变量模拟 | 配置测试 |
+| `ddsrt_gethostname` | 主机名模拟 | 网络相关测试 |
+| `entidx_lookup_*` | 实体查找返回 NULL | 测试查找失败路径 |
+| `dds_create_*` | 创建函数失败 | 测试级联错误处理 |
+
+**已知不可安全 Stub 的函数**：
+
+| 函数 | 风险 | 替代方案 |
+|------|------|----------|
+| `pthread_mutex_lock/unlock` | 死锁 | 无，接受无法覆盖 |
+| `ddsrt_mutex_*` | 死锁（内部使用 pthread） | 无 |
+| `dds_entity_init` | 锁初始化问题导致挂起 | 测试更上层函数 |
+| `signal` / 信号处理 | 进程崩溃 | 多进程测试 |
+| 已内联的函数 | Stub 无效 | 无法 Stub |
+| 递归调用的函数 | 栈溢出 | 仔细设计 Stub 逻辑 |
+| `nn_xmsg_new` | 崩溃 | 被广泛调用，包括清理路径 |
+| `nn_xmsg_free` | 崩溃 | 内存管理核心函数 |
+| `nn_xpack_*` | 崩溃 | 消息打包核心路径 |
+| `new_*` 系列函数 | 无效 | 需要多进程测试，无法单元测试 |
+| `proxy_*` 系列函数 | 无效 | 代理实体需要远程对端 |
+
+**判断函数是否可 Stub**：
+
+```
+1. 函数是否涉及锁操作？
+   └─ 是 → ❌ 不要 Stub
+   
+2. 函数是否被 inline？
+   └─ 检查头文件，有 inline 关键字 → ❌ 无法 Stub
+   
+3. Stub 后是否会形成递归？
+   └─ Stub 函数内部调用了原函数 → ❌ 栈溢出
+   
+4. 参考已有测试中的 Stub 用法
+   └─ grep -r "set_stub.*函数名" tests/
+```
+
 ---
 
 ## 8. CUnit 断言速查
@@ -464,21 +528,13 @@ set(test_sources
 
 ### 9.2 编译运行
 
+使用 `mcu_build_and_coverage` 或 `mcu_run_single_test` 工具。
+
+**手动方式（备用）**：
 ```bash
-cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu
-
-# 首次或需要重建
-rm -rf build && mkdir build && cd build
-cmake -DBUILD_TESTING=ON ..
-
-# 编译
+cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu/build
 cmake --build . --target cunit_Ddscp -j4
-
-# 运行特定 suite
 ./bin/cunit_Ddscp -s <suite_name>
-
-# 运行所有测试
-./bin/cunit_Ddscp
 ```
 
 ---
@@ -486,45 +542,20 @@ cmake --build . --target cunit_Ddscp -j4
 ## 10. Phase 5: 完整测试生成覆盖率
 
 > ⚠️ **耗时 2-5 分钟**，必须在 Phase 4 通过后才运行！
-> 
-> ⚠️ **此步骤由用户执行**，AI 等待结果即可。
 
-### 10.1 执行命令（避免日志污染上下文）
+使用 `mcu_build_and_coverage` 工具一键完成编译、测试、覆盖率报告。
 
+**手动执行（备用）**：
 ```bash
 cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu
 ./scripts/test.sh --COVERAGE=on > /tmp/mcu_test.log 2>&1; echo "Exit code: $?"
 ```
 
-### 10.2 结果处理
-
-| Exit code | 含义 | AI 操作 |
-|-----------|------|---------|
-| `0` | 成功 | 调用 `mcu_coverage_report(file="<目标文件>")` 查看覆盖率 |
-| 非 `0` | 失败 | 读取日志尾部定位错误：`tail -100 /tmp/mcu_test.log` |
-
-**失败时的排查顺序**：
-1. `tail -100 /tmp/mcu_test.log` - 查看最后的错误
-2. `grep -i "error\|fail" /tmp/mcu_test.log | tail -20` - 提取错误关键词
-3. 根据错误修复后重新执行
-
 ---
 
 ## 11. Phase 6: 验证达标
 
-### 11.1 使用 tool 验证（推荐）
-
-```
-mcu_coverage_report(file="<目标文件>.c")
-```
-
-对比输出的 `line_coverage`、`function_coverage`、`branch_coverage` 与目标档位。
-
-### 11.2 手动验证（备用）
-
-```bash
-xdg-open public/codecov.<文件>.*.html
-```
+使用 `mcu_coverage_report` 或 `mcu_build_and_coverage` 返回的覆盖率数据，对比目标档位。
 
 **未达标** → 返回 Phase 1 继续补充测试
 
@@ -559,6 +590,60 @@ xdg-open public/codecov.<文件>.*.html
 - RHC 读写：`dds_read`, `dds_take`
 - 实例/样本/视图状态
 - 消息分片
+- `new_*` 函数（如 `new_nn_xpack`, `new_writer`）
+- `proxy_*` 代理实体操作
+
+### 12.4 多进程测试编写指南
+
+**适用场景**：
+- `new_*` 路径（需要远程对端触发）
+- 跨进程通信路径
+- 代理实体发现和匹配
+- 消息可靠传输重传逻辑
+
+**添加新测试步骤**：
+
+1. **发布端** (`multiproc_pub.c`)：
+```c
+// 在 run_pub_tests() 中添加新场景
+void test_your_scenario(dds_entity_t participant) {
+    dds_entity_t topic = dds_create_topic(participant, ...);
+    dds_entity_t writer = dds_create_writer(participant, topic, ...);
+    
+    // 发送数据触发目标代码路径
+    YourType sample = {...};
+    dds_write(writer, &sample);
+    
+    // 等待订阅端确认
+    dds_sleepfor(DDS_MSECS(100));
+}
+```
+
+2. **订阅端** (`multiproc_sub.c`)：
+```c
+// 在 run_sub_tests() 中添加对应验证
+void verify_your_scenario(dds_entity_t participant) {
+    dds_entity_t topic = dds_create_topic(participant, ...);
+    dds_entity_t reader = dds_create_reader(participant, topic, ...);
+    
+    // 等待并读取数据
+    void *samples[1];
+    dds_sample_info_t infos[1];
+    int32_t n = dds_take(reader, samples, infos, 1, 1);
+    assert(n == 1);
+}
+```
+
+3. **更新运行脚本** (`run_multiproc_test.sh`)：
+```bash
+# 如果需要特殊参数，在脚本中添加
+```
+
+4. **运行验证**：
+```bash
+./examples/multiproc_test/run_multiproc_test.sh
+./scripts/test.sh --COVERAGE=on  # 检查覆盖率提升
+```
 
 ---
 
@@ -570,6 +655,38 @@ xdg-open public/codecov.<文件>.*.html
 | Stub 不生效 | 函数签名必须完全一致，确保调用 unset_stub |
 | 覆盖率没提升 | 确认测试执行了，确认重新运行了 test.sh |
 | 找不到 STATIC 函数 | 用 extern 声明，CMake 会自动定义 DDSRT_WITH_TEST |
+| mcu_coverage_report 返回错误的上下文 | 确保查看的是源文件覆盖率，工具会排除 tests 目录 |
+| mcu_list_tests file_filter 返回空 | 改用 suite_filter 参数按 suite 名匹配 |
+| mcu_build_and_coverage quick 模式找不到 suite | 手动指定 suite 参数，或运行完整模式 |
+| **新增/删除测试文件后编译失败** | 使用 `mcu_build_and_coverage(reconfigure=true)` 重新配置 CMake |
+| undefined reference 链接错误 | 使用 `reconfigure=true`，或手动运行 `cmake -DENABLE_COVERAGE=on ..` |
+
+### 13.2 编码注意事项
+
+> ⚠️ **完全忽略 LSP/clangd 诊断，仅以 cmake --build 结果为准**
+
+**LSP 错误处理原则**：
+- 此项目的 LSP 诊断**不可靠**，大量误报
+- clangd 无法正确解析 CMake 生成的 include 路径
+- 常见误报：`'sockets.h' file not found`、`undeclared identifier`、`unknown type name`
+- **唯一可信的编译检查**：`mcu_build_and_coverage` 或 `cmake --build`
+
+**处理方式**：
+```
+LSP 报错 → 直接忽略，运行 mcu_build_and_coverage(file="xxx.c", quick=true)
+cmake --build 成功 → 代码正确，无需理会 LSP
+cmake --build 失败 → 根据编译器错误修复代码
+```
+
+**禁止**：
+- ❌ 试图修复 LSP 报告的"错误"（除非 cmake 也报错）
+- ❌ 添加 include 来"满足" LSP（可能破坏编译）
+- ❌ 花时间配置 .clangd 或 compile_commands.json
+
+**注释规范**：
+- 测试代码注释保持简短
+- 不需要为每个测试函数写文档注释
+- 必要时用单行注释说明测试场景即可
 
 ### 13.1 何时接受无法覆盖
 
@@ -613,7 +730,45 @@ xdg-open public/codecov.<文件>.*.html
 
 ---
 
-## 15. 参考资源
+## 15. 工具使用最佳实践
+
+### 15.1 工作流推荐顺序
+
+```
+1. mcu_estimate_max_coverage(file="xxx.c")  # 【新】评估目标是否可达
+2. mcu_coverage_report(file="xxx.c")        # 查看当前覆盖率和未覆盖项（含可达性分析）
+3. mcu_find_test_file(source="xxx.c")       # 找到应追加测试的文件（含多进程分析）
+4. mcu_list_tests(suite_filter="xxx")       # 确认 suite 名称
+5. [编写测试代码]
+6. mcu_run_single_test(suite="xxx")         # 快速验证测试通过
+7. mcu_quick_coverage(suite, test, file)    # 【改进】快速验证覆盖率（自动备份恢复 gcda）
+8. mcu_build_and_coverage(file="xxx.c")     # 生成完整覆盖率报告
+```
+
+### 15.2 工具参数选择
+
+| 场景 | 推荐工具和参数 |
+|------|----------------|
+| 评估目标可达性 | `mcu_estimate_max_coverage(file="xxx.c")` |
+| 只想快速编译验证 | `mcu_build_and_coverage(file="xxx.c", quick=true)` |
+| 需要完整覆盖率 | `mcu_build_and_coverage(file="xxx.c")` |
+| 验证单个测试 | `mcu_run_single_test(suite="xxx", test="yyy")` |
+| 按源文件查测试 | 先 `mcu_find_test_file`，再 `mcu_list_tests(suite_filter="...")` |
+| 快速验证覆盖率效果 | `mcu_quick_coverage(suite, test, file)` - 自动备份/恢复 gcda |
+| 检查代码是否需要多进程 | `mcu_find_test_file` 返回 `multiproc_analysis` 字段 |
+
+### 15.3 注意事项
+
+- `mcu_build_and_coverage` 完整模式耗时 2-5 分钟，迭代时用 quick 模式
+- `mcu_quick_coverage` 现在**自动备份和恢复** .gcda 文件，无需重新运行完整测试
+- 覆盖率报告解析的行号对应**源文件**，不是测试文件
+- gcov 对 `a && b` 生成 4 个分支，对三元运算符生成 2 个分支
+- `mcu_coverage_report` 返回 `reachability` 字段标注每个未覆盖项的可达性
+- `mcu_list_tests` 现在直接从源文件解析 `CU_Test(suite, test)` 宏，更准确
+
+---
+
+## 16. 参考资源
 
 | 资源 | 路径 |
 |------|------|

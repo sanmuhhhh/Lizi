@@ -3,31 +3,33 @@ import path from "path"
 import os from "os"
 
 export default tool({
-  description: `解析 MCU 项目的覆盖率报告，返回未覆盖行/分支的结构化数据。
+  description: `根据源文件查找已有的测试文件，并推荐应该追加测试的位置。
 
 用法示例:
-  mcu_coverage_report(file="dds_participant.c")
-  mcu_coverage_report(file="ddsi_ownip.c")
+  mcu_find_test_file(source="rpcserver.c")
+  mcu_find_test_file(source="ddsi_ownip.c")
 
 返回 JSON:
   {
-    "line_coverage": 93.8,
-    "branch_coverage": 93.5,
-    "function_coverage": 100.0,
-    "uncovered_lines": [{"line": 158, "source": "..."}],
-    "uncovered_branches": [{"line": 157, "branch": "0", "total_branches": 2, "condition": "if (qos != NULL)"}]
-  }
-
-注意: 需先运行 ./scripts/test.sh --COVERAGE=on 生成报告`,
+    "source_file": "rpcserver.c",
+    "existing_tests": [
+      {"file": "notify_rpc_coverage.c", "suites": ["notify_rpc_qos", "notify_rpc_init"], "relevance": 10}
+    ],
+    "recommendation": {
+      "action": "append",
+      "file": "notify_rpc_coverage.c",
+      "reason": "已有相关测试文件，建议追加到现有 suite"
+    }
+  }`,
   args: {
-    file: tool.schema.string().describe("源文件名，如 'dds_participant.c' 或 'ddsi_ownip.c'"),
+    source: tool.schema.string().describe("源文件名，如 'rpcserver.c' 或 'ddsi_ownip.c'"),
   },
   async execute(args, context) {
     const toolsDir = path.join(os.homedir(), ".config/opencode/tools")
-    const script = path.join(toolsDir, "mcu_coverage_report.py")
+    const script = path.join(toolsDir, "mcu_find_test_file.py")
     const projectRoot = "/home/sanmu/MyProject/mcu_ctest/autosar-mcu"
     
-    const proc = Bun.spawn(["python3", script, args.file], {
+    const proc = Bun.spawn(["python3", script, args.source], {
       cwd: projectRoot,
       stdout: "pipe",
       stderr: "pipe",
@@ -50,8 +52,6 @@ export default tool({
     }
     
     try {
-      // Validate JSON is parseable, then return as string
-      // (OpenCode expects string return, not object)
       JSON.parse(stdout)
       return stdout
     } catch {
