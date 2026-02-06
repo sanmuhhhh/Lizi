@@ -4,7 +4,7 @@
 
 ---
 
-## 0. 快速上手（30 秒）
+## 0. 快速上手
 
 ```bash
 # 1. 查看目标文件当前覆盖率（使用 tool）
@@ -17,10 +17,12 @@ vim tests/<模块>_coverage.c
 cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu/build
 cmake --build . --target cunit_Ddscp -j4 && ./bin/cunit_Ddscp -s <suite>
 
-# 4. 完整测试（耗时 2-5 分钟，让用户执行）
-cd .. && ./scripts/test.sh --COVERAGE=on
+# 4. 完整测试（耗时 2-5 分钟，用户执行，日志重定向避免污染上下文）
+cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu
+./scripts/test.sh --COVERAGE=on > /tmp/mcu_test.log 2>&1; echo "Exit code: $?"
+# Exit code 0 = 成功，非 0 = 失败（用 tail -100 /tmp/mcu_test.log 查看错误）
 
-# 5. 再次检查覆盖率
+# 5. 验证覆盖率
 mcu_coverage_report(file="<模块名>.c")
 ```
 
@@ -483,22 +485,44 @@ cmake --build . --target cunit_Ddscp -j4
 
 ## 10. Phase 5: 完整测试生成覆盖率
 
-**重要**：耗时 2-5 分钟，必须在 Phase 4 通过后才运行！
+> ⚠️ **耗时 2-5 分钟**，必须在 Phase 4 通过后才运行！
+> 
+> ⚠️ **此步骤由用户执行**，AI 等待结果即可。
+
+### 10.1 执行命令（避免日志污染上下文）
 
 ```bash
 cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu
-./scripts/test.sh --COVERAGE=on
+./scripts/test.sh --COVERAGE=on > /tmp/mcu_test.log 2>&1; echo "Exit code: $?"
 ```
+
+### 10.2 结果处理
+
+| Exit code | 含义 | AI 操作 |
+|-----------|------|---------|
+| `0` | 成功 | 调用 `mcu_coverage_report(file="<目标文件>")` 查看覆盖率 |
+| 非 `0` | 失败 | 读取日志尾部定位错误：`tail -100 /tmp/mcu_test.log` |
+
+**失败时的排查顺序**：
+1. `tail -100 /tmp/mcu_test.log` - 查看最后的错误
+2. `grep -i "error\|fail" /tmp/mcu_test.log | tail -20` - 提取错误关键词
+3. 根据错误修复后重新执行
 
 ---
 
 ## 11. Phase 6: 验证达标
 
-```bash
-# 查看目标文件覆盖率
-ls public/codecov.*<模块名>*.html
+### 11.1 使用 tool 验证（推荐）
 
-# 在浏览器中查看
+```
+mcu_coverage_report(file="<目标文件>.c")
+```
+
+对比输出的 `line_coverage`、`function_coverage`、`branch_coverage` 与目标档位。
+
+### 11.2 手动验证（备用）
+
+```bash
 xdg-open public/codecov.<文件>.*.html
 ```
 

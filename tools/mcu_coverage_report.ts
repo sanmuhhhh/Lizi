@@ -1,47 +1,35 @@
-import { z } from "zod";
-import { spawn } from "child_process";
-import path from "path";
+import { tool } from "@opencode-ai/plugin"
+import path from "path"
+import os from "os"
 
-const TOOL_PATH = path.join(__dirname, "mcu_coverage_report.py");
-
-export const description =
-  "解析 MCU 项目的覆盖率报告，返回未覆盖行/分支的结构化数据";
-
-export const parameters = z.object({
-  file: z
-    .string()
-    .describe(
-      "源文件名或路径，如 ddsi_ownip.c 或 src/CDD/.../ddsi_ownip.c"
-    ),
-});
-
-export async function execute(args: z.infer<typeof parameters>) {
-  return new Promise((resolve) => {
-    const proc = spawn("python3", [TOOL_PATH, args.file], {
-      cwd: "/home/sanmu/MyProject/mcu_ctest/autosar-mcu",
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    proc.on("close", (code) => {
-      if (code !== 0 || stderr) {
-        resolve({ error: stderr || `Exit code: ${code}` });
-        return;
-      }
-      try {
-        resolve(JSON.parse(stdout));
-      } catch {
-        resolve({ error: "Failed to parse output", raw: stdout });
-      }
-    });
-  });
-}
+export default tool({
+  description: "解析 MCU 项目的覆盖率报告，返回未覆盖行/分支的结构化数据",
+  args: {
+    file: tool.schema.string().describe("源文件名或路径，如 ddsi_ownip.c 或 src/CDD/.../ddsi_ownip.c"),
+  },
+  async execute(args, context) {
+    const liziDir = path.join(os.homedir(), ".config/lizi")
+    const script = path.join(liziDir, "tools/mcu_coverage_report.py")
+    const projectRoot = "/home/sanmu/MyProject/mcu_ctest/autosar-mcu"
+    
+    const proc = Bun.spawn(["python3", script, args.file], {
+      cwd: projectRoot,
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+    
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    await proc.exited
+    
+    if (proc.exitCode !== 0 || stderr) {
+      return { error: stderr || `Exit code: ${proc.exitCode}` }
+    }
+    
+    try {
+      return JSON.parse(stdout)
+    } catch {
+      return { error: "Failed to parse output", raw: stdout }
+    }
+  },
+})
