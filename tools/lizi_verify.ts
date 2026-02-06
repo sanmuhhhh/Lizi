@@ -10,7 +10,14 @@ export default tool({
 2. pick - 随机抽取问题，返回 question 工具需要的格式
 3. check - 验证用户的答案
 4. add - 添加单个验证问题（渐进式更新）
-5. setup - 批量设置验证问题库`,
+5. setup - 批量设置验证问题库
+
+验证流程：
+1. 先调用 pick 获取问题（会返回多个问题）
+2. 用 question 工具向用户展示所有问题，一次性收集所有答案
+3. 调用 check 验证，data 格式必须是：{"answers": [["答案1"], ["答案2"], ["答案3"]]}
+   - answers 是数组，每个元素也是数组（因为 question 支持多选）
+   - 顺序必须与 pick 返回的问题顺序一致`,
   args: {
     mode: tool.schema.enum(["status", "pick", "check", "add", "setup"]).describe("模式"),
     data: tool.schema.string().optional().describe("JSON数据"),

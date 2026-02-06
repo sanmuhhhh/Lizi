@@ -31,13 +31,16 @@ export default tool({
     await proc.exited
     
     if (proc.exitCode !== 0 || stderr) {
-      return { error: stderr || `Exit code: ${proc.exitCode}` }
+      return JSON.stringify({ error: stderr || `Exit code: ${proc.exitCode}` })
     }
     
     try {
-      return JSON.parse(stdout)
+      // Validate JSON is parseable, then return as string
+      // (OpenCode expects string return, not object)
+      JSON.parse(stdout)
+      return stdout
     } catch {
-      return { error: "Failed to parse output", raw: stdout }
+      return JSON.stringify({ error: "Failed to parse output", raw: stdout })
     }
   },
 })
