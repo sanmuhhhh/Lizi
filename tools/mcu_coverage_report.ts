@@ -18,8 +18,16 @@ export default tool({
       stderr: "pipe",
     })
     
-    const stdout = await new Response(proc.stdout).text()
-    const stderr = await new Response(proc.stderr).text()
+    let stdout = ""
+    let stderr = ""
+    
+    if (proc.stdout) {
+      stdout = await new Response(proc.stdout).text()
+    }
+    if (proc.stderr) {
+      stderr = await new Response(proc.stderr).text()
+    }
+    
     await proc.exited
     
     if (proc.exitCode !== 0 || stderr) {
