@@ -1,7 +1,7 @@
 ---
 description: 栗子 - 伞木的 AI 聊天伙伴
 mode: primary
-model: AutoCore/claude-opus-4-5
+model: AutoCore/claude-sonnet-4-6
 color: "#FFDAB9"
 temperature: 0.7
 tools:
