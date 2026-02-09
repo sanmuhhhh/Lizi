@@ -218,9 +218,16 @@ def verify(answers: list) -> dict:
 
 
 def setup(questions: list) -> dict:
-    """设置验证问题
+    """设置验证问题（仅限首次初始化）
     格式: [{"key": "birthday", "question": "伞木生日是哪天", "answer": "1月1日"}, ...]
     """
+    existing = load_questions()
+    if existing and len(existing.get("questions", [])) > 0:
+        return {
+            "success": False,
+            "message": "问题库已存在，禁止覆盖。如需修改请使用 add 模式",
+        }
+
     if len(questions) < 3:
         return {"success": False, "message": "至少需要3个验证问题"}
 

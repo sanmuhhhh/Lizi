@@ -660,6 +660,8 @@ void verify_your_scenario(dds_entity_t participant) {
 | mcu_build_and_coverage quick 模式找不到 suite | 手动指定 suite 参数，或运行完整模式 |
 | **新增/删除测试文件后编译失败** | 使用 `mcu_build_and_coverage(reconfigure=true)` 重新配置 CMake |
 | undefined reference 链接错误 | 使用 `reconfigure=true`，或手动运行 `cmake -DENABLE_COVERAGE=on ..` |
+| **`#include 源文件.c` 后调用库函数找不到数据** | 见 13.4 符号隔离陷阱 |
+| **Stub 后测试超时/卡死/段错误** | 见 13.5 Stub 全局副作用 |
 
 ### 13.2 编码注意事项
 
@@ -688,7 +690,131 @@ cmake --build 失败 → 根据编译器错误修复代码
 - 不需要为每个测试函数写文档注释
 - 必要时用单行注释说明测试场景即可
 
-### 13.1 何时接受无法覆盖
+### 13.3 C 语言隐式函数声明陷阱
+
+> ⚠️ **必须包含正确的头文件，否则返回指针的函数会被截断**
+
+**问题现象**：
+- 调用 `dds_create_qos()` 等返回指针的函数时 segfault
+- 指针值看起来像被截断（如 `0xfffffffff7beed9c`）
+- gdb 显示指针参数明显无效
+
+**根本原因**：
+C 语言的隐式函数声明规则：如果调用函数时没有可见的声明，编译器假设函数返回 `int`。在 64 位系统上，`int` 是 32 位，而指针是 64 位，导致返回值被截断。
+
+**典型错误示例**：
+```c
+// 错误：缺少 #include "dds_qos.h"
+dds_qos_t *qos = dds_create_qos();  // 返回值被截断成 32 位！
+dds_qset_userdata(qos, "data", 4);  // segfault: qos 是无效指针
+```
+
+**解决方案**：
+```c
+#include "dds.h"
+#include "dds_qos.h"  // 必须包含！dds.h 不会自动包含它
+
+dds_qos_t *qos = dds_create_qos();  // 现在正确返回 64 位指针
+```
+
+**需要显式包含的头文件**：
+
+| 函数 | 需要的头文件 |
+|------|-------------|
+| `dds_create_qos`, `dds_delete_qos` | `dds_qos.h` |
+| `dds_qset_*`, `dds_qget_*` | `dds_qos.h` |
+| `dds_create_listener`, `dds_delete_listener` | `dds_listener.h` |
+| `dds_lset_*`, `dds_lget_*` | `dds_listener.h` |
+
+**检查方法**：
+1. 编译时如果看到 `implicit declaration of function 'xxx'` 警告 → 缺少头文件
+2. 运行时 segfault 且指针值异常 → 检查返回指针的函数是否有正确声明
+3. 用 gdb 检查指针值是否看起来像被截断（高 32 位是 0xffffffff 或 0x00000000）
+
+### 13.4 符号隔离陷阱（#include 源文件.c）
+
+> ⚠️ **`#include "源文件.c"` 会创建独立的全局变量副本**
+
+**问题现象**：
+- 调用 `dds_domain_find_locked()` 返回 NULL
+- 明明 `dds_create_participant()` 成功了，却找不到 domain
+- 测试文件里的函数和库里的函数操作的是不同的数据
+
+**根本原因**：
+当测试文件 `#include "dds_domain.c"` 时，源文件中的所有静态/全局变量（如 `dds_global`、AVL 树等）在测试文件中有一份**独立副本**。而 `dds_create_participant()` 调用的是**库里的** `dds_domain.c`，它们操作不同的全局变量。
+
+```
+测试文件副本:  dds_global (空)     ← dds_domain_find_locked() 查这里
+库里的原本:    dds_global (有数据) ← dds_create_participant() 写这里
+```
+
+**解决方案**：
+
+| 场景 | 正确做法 |
+|------|----------|
+| 需要获取 domain 指针 | 通过 `dds_entity_pin(participant, &e)` 获取 entity，再用 `e->m_domain` |
+| 需要调用内部函数 | 用 extern 声明 STATIC 函数，不要 include 源文件 |
+| 必须 include 源文件 | 只调用该文件内的静态函数，不要混用库 API |
+
+**正确示例**：
+```c
+CU_Test(dds_domain_cov, test_something)
+{
+    dds_entity_t participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL, NULL);
+    CU_ASSERT_FATAL(participant > 0);
+
+    // ❌ 错误：dds_domain_find_locked 查的是测试文件副本
+    // dds_domain *dom = dds_domain_find_locked(DDS_DOMAIN_DEFAULT);
+
+    // ✅ 正确：通过 entity API 获取库里真正的 domain
+    dds_entity *e;
+    dds_return_t rc = dds_entity_pin(participant, &e);
+    CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
+    dds_domain *dom = e->m_domain;
+    CU_ASSERT_FATAL(dom != NULL);
+
+    // 现在 dom 是库里真正的 domain，可以修改它
+    dom->gv.default_local_plist_pp = NULL;
+
+    dds_entity_unpin(e);
+    dds_delete(participant);
+}
+```
+
+### 13.5 Stub 全局副作用
+
+> ⚠️ **Stub 影响所有线程，包括后台线程**
+
+**问题现象**：
+- 设置 Stub 后测试超时/卡死
+- 段错误发生在非预期位置
+- `dds_delete()` 永远不返回
+
+**根本原因**：
+`set_stub()` 修改的是函数入口的机器码，影响**整个进程**。`dds_create_participant()` 会启动多个后台线程（发现、保活等），这些线程也会调用被 Stub 的函数。
+
+**典型危险场景**：
+```c
+// ❌ 危险：stub dds_handle_is_closed 影响所有线程
+void *stub = set_stub((void *)dds_handle_is_closed, (void *)always_return_true);
+// 后台线程检查句柄状态时，误以为所有实体都在删除中，导致崩溃或死锁
+```
+
+**安全的替代方案**：
+
+| 危险 Stub | 安全替代 |
+|-----------|----------|
+| `dds_handle_is_closed` | 真实调用 `dds_handle_close()` 关闭句柄 |
+| `dds_entity_init` | Stub 更上层的 `dds_handle_create` |
+| 任何锁相关函数 | 无法 Stub，接受无法覆盖 |
+
+**安全 Stub 的原则**：
+1. Stub 的函数应该**只在测试流程中被调用**，不被后台线程调用
+2. Stub 时间要**尽可能短**，用完立即 `unset_stub()`
+3. 优先 Stub **叶子函数**（如 `malloc`），而不是被广泛调用的核心函数
+4. 如果测试超时，首先怀疑 Stub 副作用
+
+### 13.6 何时接受无法覆盖
 
 某些代码路径在 Linux 测试环境下**确实无法覆盖**，应当接受并停止尝试：
 
