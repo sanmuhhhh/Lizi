@@ -1,16 +1,11 @@
+---
+name: mcu-ctest
+description: MCU CTest 覆盖率提升技能。在 autosar-mcu 项目中提升单元测试覆盖率时加载。
+---
+
 # MCU CTest 覆盖率提升
 
 **专属仓库**: `/home/sanmu/MyProject/mcu_ctest/autosar-mcu`
-
----
-
-## 0. 工作流程
-
-1. 查看当前覆盖率 → 定位未覆盖行/分支
-2. 查找相关测试文件 → 确定追加位置
-3. 编写测试用例 → 使用 stub 模拟依赖
-4. 快速编译验证 → 确认测试通过
-5. 完整测试 + 覆盖率 → 验证达标
 
 ---
 
@@ -19,86 +14,130 @@
 ### 1.1 触发命令
 
 ```
-/mcu_ctest <源文件路径> [档位]
+/mcu_ctest <源文件路径>
 ```
 
 | 参数 | 说明 |
 |------|------|
 | `<源文件路径>` | 必填，要提升覆盖率的源文件 |
-| `[档位]` | 可选：`low`、`mid`（默认）、`high` |
 
 **示例**：
 ```bash
-/mcu_ctest src/CDD/CDD_Dds/core/ddsi/src/ddsi_ownip.c          # 默认 mid
-/mcu_ctest src/CDD/CDD_Dds/core/ddsi/src/ddsi_ownip.c low      # 60%
-/mcu_ctest src/CDD/CDD_Dds/core/ddsi/src/ddsi_ownip.c high     # 90%
+/mcu_ctest src/CDD/CDD_Dds/core/ddsi/src/ddsi_ownip.c
 ```
 
 ### 1.2 覆盖率目标
 
-| 档位 | 行覆盖率 | 函数覆盖率 | 分支覆盖率 | 适用场景 |
-|------|----------|------------|------------|----------|
-| `low` | 60% | 70% | 50% | 快速提升、初步覆盖 |
-| `mid` | 75% | 85% | 65% | 中等要求（默认） |
-| `high` | 90% | 95% | 80% | 高要求、核心模块 |
+**目标：在可测试范围内尽力全覆盖。**
+
+- 不设固定百分比档位，以该文件**技术上可达的最高覆盖率**为目标
+- 无法覆盖的路径（硬件依赖、锁相关、平台特定代码等）需记录原因并告知用户
+- 向用户报告时说明：当前覆盖率 X%，以及哪些行/分支无法覆盖及原因
 
 ### 1.3 源码修改红线
 
-> ⚠️ **禁止修改源码**（除以下两种情况外）
+> ⚠️ **禁止修改源码**（除以下三种情况外）
 
 | 允许的修改 | 说明 |
 |------------|------|
 | `static` → `STATIC` | 将原生静态函数改为 STATIC 宏，使其可测试 |
 | Bug 修复 | 发现源码 bug 时可修复 |
+| 测试宏包裹分支 | 对局部变量导致的无法到达的分支，用 `DDSRT_WITH_TEST` 宏条件包裹，使测试能走到特定分支 |
 
 **禁止**：
 - ❌ 添加测试包装函数
 - ❌ 修改函数签名
-- ❌ 添加条件编译 `#ifdef TEST`
+- ❌ 滥用测试宏（仅限覆盖死角，勿过度使用）
 - ❌ 任何其他"为了测试方便"的源码改动
+
+**测试宏使用规范**：
+
+当局部变量导致某些分支在正常调用路径下无法到达时，可使用 `#if DDSRT_WITH_TEST` 条件编译：
+
+```c
+// 场景：ret 直接赋常量 0，if (ret < 0) 分支永远走不到，也没有函数可 stub
+int ret = 0;
+#if DDSRT_WITH_TEST
+ret = -1;  // 测试模式下强制注入错误值，覆盖否则死角的错误分支
+#endif
+if (ret < 0) {
+    return DDS_RETCODE_ERROR;  // 生产环境不可达，测试环境可覆盖
+}
+```
+
+**使用条件**：
+1. 仅用于覆盖通过正常调用路径**确实无法到达**的死角分支
+2. 必须使用 `DDSRT_WITH_TEST`（不是自定义的 TEST 宏）
+3. 同一函数内条件编译代码块不超过 3 处
+4. 需要在测试代码中定义相关变量或触发条件
 
 **测试代码的正确做法**：
 - 使用 `#include "源文件.c"` 访问静态函数
 - 使用 `extern` 声明 STATIC 函数
 - 使用 Stub 框架模拟依赖
 
+### 1.4 DDS_TEST_PIN 宏注入
+
+> 使用 `DDS_TEST_PIN` 宏标记变量，测试时通过 stub 修改其值
+
+**API**：
+```c
+#define DDS_TEST_PIN(type, var) ((var) = dds_test_pin_##type(var, #var))
+
+// 类型: bool, int, u32, ptr
+extern bool dds_test_pin_bool(bool value, const char *var);
+extern int dds_test_pin_int(int value, const char *var);
+extern uint32_t dds_test_pin_u32(uint32_t value, const char *var);
+extern void *dds_test_pin_ptr(void *value, const char *var);
+```
+
+**源码**：
+```c
+bool is_waitset = dds_entity_kind(e) == DDS_KIND_WAITSET;
+DDS_TEST_PIN(bool, is_waitset);  // 测试模式下可被 stub 修改
+if (is_waitset) { ... }
+```
+
+**测试**：
+```c
+static bool stub_true(bool v, const char *n) { (void)v; (void)n; return true; }
+
+extern bool dds_test_pin_bool(bool, const char *);
+void *stub = set_stub((void *)dds_test_pin_bool, (void *)stub_true);
+dds_delete(participant);  // is_waitset 被改为 true
+unset_stub(stub);
+```
+
 ---
 
 ## 2. 核心概念
 
-### 2.1 函数类型与测试方法
+### 2.1 STATIC / INLINE 宏机制
 
-| 函数类型 | 定义方式 | 测试方法 | 优先级 |
-|----------|----------|----------|--------|
-| **STATIC 宏函数** | `STATIC void func()` | extern 声明直接调用 | **首选** |
-| **原生静态函数** | `static void func()` | #include 源文件 | 备选 |
-| **Inline 函数** | 头文件中定义 | #include 头文件 | - |
-| **普通函数** | 公共头文件声明 | 直接调用 | - |
-
-### 2.2 STATIC 宏机制
-
-源码使用 `STATIC` 宏代替 `static`（定义于 `ddsrt_assert.h`）：
+源码使用 `STATIC` / `INLINE` 宏（定义于 `ddsrt_assert.h`）：
 
 ```c
 #if DDSRT_WITH_TEST
-  #define STATIC        // 测试模式：变成全局可见
+  #define STATIC   // static 函数变成全局符号，可 extern 调用 / stub
+  #define INLINE   // inline 函数变成普通函数，可 extern 调用 / stub
 #else
-  #define STATIC static // 生产模式：正常静态
+  #define STATIC static
+  #define INLINE inline
 #endif
 ```
 
-测试时 CMake 自动定义 `DDSRT_WITH_TEST=1`，STATIC 函数变成全局符号。
+测试时 CMake 自动定义 `DDSRT_WITH_TEST=1`，`STATIC`/`INLINE` 函数均变成全局符号。
 
-### 2.3 测试文件命名规则
+### 2.2 测试文件命名规则
 
 | 后缀 | 用途 | 示例 |
 |------|------|------|
 | `_test.c` | 功能测试、API 测试 | `ddsi_ownip_test.c` |
 | `_coverage.c` | 覆盖率补充、边界测试 | `dds_topic_coverage.c` |
-| `_inline.c` | 内联函数测试 | `entity_inline.c` |
+| `_inline.c` | INLINE 宏函数专项测试（已弃用，直接用 extern 即可） | `entity_inline.c` |
 | `_static_test.c` | 静态函数专项测试 | `q_entity_static_test.c` |
 
-### 2.4 测试用例命名规范
+### 2.3 测试用例命名规范
 
 > ⚠️ **防止重名**：Suite 和 Test 名称在整个项目中必须唯一
 
@@ -168,7 +207,7 @@ CU_Test(q_entity_static, validate_qos_invalid_policy)
 - 未覆盖行号 + 源码片段 + 上下文
 - 未覆盖分支 + 所在函数名
 
-### 4.3 优先级排序
+### 4.2 优先级排序
 
 1. **未覆盖函数** - 整个函数未被调用（最高优先）
 2. **错误处理分支** - `if (error)` / `return -1`
@@ -177,7 +216,7 @@ CU_Test(q_entity_static, validate_qos_invalid_policy)
 5. **else 分支** - 被忽略的反向逻辑
 6. **switch default** - 未匹配的 case
 
-### 4.4 未覆盖代码分析决策树
+### 4.3 未覆盖代码分析决策树
 
 ```
 未覆盖行/分支是什么类型？
@@ -192,6 +231,10 @@ CU_Test(q_entity_static, validate_qos_invalid_policy)
 │   │
 │   ├─ 边界条件（size == 0, overflow）
 │   │   └─ 构造边界输入值
+│   │
+│   ├─ 实体类型判断（无法通过 API 创建的实体）
+│   │   └─ Test-Only 函数封装条件，再 stub
+│   │      例: WAITSET 分支，inline 函数判断
 │   │
 │   └─ 短路求值分支（&& / ||）
 │       └─ 通常需要多个测试覆盖不同组合
@@ -241,9 +284,9 @@ CU_Test(q_entity_static, validate_qos_invalid_policy)
 │      - 一个测试文件只包含一个 .c 文件
 │      - 注意符号冲突
 │
-├─ Inline 函数（头文件定义）
-│   └─ ✅ #include 头文件直接调用
-│      - 测试文件命名 xxx_inline.c
+├─ INLINE 宏函数（`INLINE void func()`）
+│   └─ ✅ 直接 extern 声明调用（与 STATIC 相同）
+│      - 测试模式下展开为普通函数，可 stub
 │
 └─ 普通公共函数
     └─ ✅ 通过公共 API 调用
@@ -288,109 +331,67 @@ mcu_list_tests(suite_filter="<你的suite名>")
 
 ## 6. Phase 3: 编写测试用例
 
-### 6.1 测试 STATIC 宏函数（推荐）
+### 6.1 测试 STATIC / INLINE 宏函数（推荐）
+
+`STATIC`/`INLINE` 函数在测试模式下均变成全局符号，直接 `extern` 声明即可调用或 stub：
 
 ```c
-#include "CUnit/Test.h"
-#include "dds.h"
-#include "stub.h"
+extern void some_static_func(int x);
+extern bool some_inline_func(bool v);
 
-/* 直接声明 STATIC 函数（测试模式下已变成全局符号） */
-extern void instance_deadline_missed_cb(struct xevent *xev, void *varg, ddsrt_mtime_t tnow);
-
-CU_Test(ddsi_deadline, test_callback)
+CU_Test(module, test_case)
 {
-    /* 直接调用，无需 #include 源文件 */
-    instance_deadline_missed_cb(NULL, NULL, now);
-    CU_ASSERT_TRUE(1);
+    some_static_func(42);
+    CU_ASSERT_TRUE(some_inline_func(true));
 }
 ```
 
 ### 6.2 测试原生静态函数（备用）
 
 ```c
-#include <stdint.h>
-#include <string.h>
-#include "CUnit/Test.h"
-#include "dds.h"
-#include "stub.h"
-
-/* 最后包含源文件以访问静态函数 */
 #include "../src/CDD/CDD_Dds/core/ddsi/src/ddsi_ownip.c"
 
 CU_Test(ddsi_ownip, test_count_commas)
 {
-    size_t result = count_commas("a,b,c");  /* 静态函数 */
+    size_t result = count_commas("a,b,c");
     CU_ASSERT_EQUAL(result, 2);
 }
 ```
 
-### 6.3 测试 Inline 函数
+### 6.3 使用 DDS_TEST_PIN（无法通过 API 触发的分支）
 
+**源码**：
 ```c
-#include "CUnit/Test.h"
-#include "q_bitset.h"  /* 包含 inline 函数定义的头文件 */
-
-CU_Test(q_bitset_inline, isset_out_of_range)
-{
-    uint32_t bits[2] = {0xFFFFFFFF, 0xFFFFFFFF};
-    bool result = nn_bitset_isset(64, bits, 100);  /* inline 函数 */
-    CU_ASSERT_FALSE(result);
-}
+bool is_waitset = dds_entity_kind(e) == DDS_KIND_WAITSET;
+DDS_TEST_PIN(bool, is_waitset);
+if (is_waitset) { ... }
 ```
 
-### 6.4 完整测试文件模板
-
+**测试**：
 ```c
-/*
- * Copyright(c) 2021-2023 AutoCore Technology (Nanjing) Co., Ltd.
- */
+static bool stub_true(bool v, const char *n) { (void)v; (void)n; return true; }
 
-/* ===== 1. 标准库 ===== */
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
-
-/* ===== 2. CUnit ===== */
-#include "CUnit/Test.h"
-
-/* ===== 3. 项目头文件 ===== */
-#include "dds.h"
-#include "dds__types.h"
-
-/* ===== 4. Stub 框架 ===== */
-#include "stub.h"
-
-/* ===== 5. STATIC 函数声明（如需要） ===== */
-extern void some_static_function(int param);
-
-/* ===== 6. 或包含源文件（原生 static 时） ===== */
-// #include "../src/CDD/CDD_Dds/path/to/module.c"
-
-/* ===== 7. Stub 定义 ===== */
-static int g_stub_result = 0;
-static int stub_dependency(int x) {
-    return g_stub_result;
-}
-
-/* ===== 8. 测试用例 ===== */
-CU_Test(module_name, normal_case)
+CU_Test(coverage, branch, .init = setup, .fini = teardown)
 {
-    int result = function_under_test(42);
-    CU_ASSERT_EQUAL(result, EXPECTED);
-}
-
-CU_Test(module_name, error_path)
-{
-    g_stub_result = -1;
-    void *stub = set_stub((void *)dependency, (void *)stub_dependency);
-    
-    int result = function_under_test(0);
-    
+    extern bool dds_test_pin_bool(bool, const char *);
+    void *stub = set_stub((void *)dds_test_pin_bool, (void *)stub_true);
+    dds_delete(participant);
     unset_stub(stub);
-    CU_ASSERT_EQUAL(result, ERROR_CODE);
 }
 ```
+
+### 6.5 完整测试文件模板
+
+> 参考模板：`tests/ddsi_ownip_test.c` (约950行)
+
+典型结构：
+1. 标准库头文件 (`stdint.h`, `string.h`, `stdlib.h`)
+2. CUnit (`CUnit/Test.h`)
+3. 项目头文件 (`dds.h`, `dds__types.h`)
+4. Stub 框架 (`stub.h`)
+5. STATIC 函数 extern 声明 或 `#include` 源文件
+6. Stub 定义（全局变量 + stub 函数）
+7. 测试用例 (`CU_Test(suite_name, test_name)`)
 
 ---
 
@@ -403,19 +404,7 @@ void *set_stub(void *func, void *func_stub);  // 替换函数，返回句柄
 void unset_stub(void *stub);                   // 恢复原函数
 ```
 
-### 7.2 实现原理
-
-运行时修改函数入口机器码：
-1. `mprotect()` 修改内存页为可写
-2. 写入跳转指令到 stub 函数
-3. 恢复内存保护
-
-**限制**：
-- 支持 x86_64、ARM、ARM64、MIPS64
-- 函数签名必须完全一致
-- 不支持已内联的函数
-
-### 7.3 常用模式
+### 7.2 常用模式
 
 **错误注入**：
 ```c
@@ -437,7 +426,7 @@ static int g_captured = 0;
 static void stub_func(int x) { g_captured = x; }
 ```
 
-### 7.4 多 Stub 管理
+### 7.3 多 Stub 管理
 
 ```c
 /* LIFO 顺序：先设置的后恢复 */
@@ -450,7 +439,7 @@ unset_stub(s2);  /* 后进先出 */
 unset_stub(s1);
 ```
 
-### 7.5 Stub 安全性参考
+### 7.4 Stub 安全性参考
 
 > ⚠️ **某些函数 Stub 后会导致死锁或崩溃**
 
@@ -514,32 +503,27 @@ CU_ASSERT_FATAL(condition)             // 失败则停止
 
 ---
 
-## 9. Phase 4: 单独编译验证
+## 9. Phase 4-6: 编译验证与覆盖率
 
-### 9.1 添加到 CMakeLists.txt
+### 9.1 Phase 4: 单独编译验证
 
+先将新测试文件加入 `tests/CMakeLists.txt`：
 ```cmake
-# tests/CMakeLists.txt
 set(test_sources
     # ... 现有测试 ...
     your_new_test.c    # 新增
 )
 ```
 
-### 9.2 编译运行
-
-使用 `mcu_build_and_coverage` 或 `mcu_run_single_test` 工具。
+使用 `mcu_build_and_coverage` 或 `mcu_run_single_test` 工具验证。
 
 **手动方式（备用）**：
 ```bash
-cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu/build
-cmake --build . --target cunit_Ddscp -j4
-./bin/cunit_Ddscp -s <suite_name>
+cmake --build build/ --target cunit_Ddscp -j4
+./build/bin/cunit_Ddscp -s <suite_name>
 ```
 
----
-
-## 10. Phase 5: 完整测试生成覆盖率
+### 9.2 Phase 5: 完整测试生成覆盖率
 
 > ⚠️ **耗时 2-5 分钟**，必须在 Phase 4 通过后才运行！
 
@@ -547,17 +531,15 @@ cmake --build . --target cunit_Ddscp -j4
 
 **手动执行（备用）**：
 ```bash
-cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu
 ./scripts/test.sh --COVERAGE=on > /tmp/mcu_test.log 2>&1; echo "Exit code: $?"
 ```
 
----
+### 9.3 Phase 6: 验证达标
 
-## 11. Phase 6: 验证达标
+使用 `mcu_coverage_report` 或 `mcu_build_and_coverage` 查看覆盖率数据。
 
-使用 `mcu_coverage_report` 或 `mcu_build_and_coverage` 返回的覆盖率数据，对比目标档位。
-
-**未达标** → 返回 Phase 1 继续补充测试
+- 仍有可覆盖的行/分支 → 返回 Phase 1 继续补充
+- 剩余未覆盖项均属无法覆盖 → 记录原因，向用户汇报结果
 
 ---
 
@@ -584,70 +566,27 @@ cd /home/sanmu/MyProject/mcu_ctest/autosar-mcu
 ./examples/multiproc_test/run_multiproc_test.sh
 ```
 
-### 12.3 覆盖的代码路径
+### 12.3 覆盖路径与编写指南
 
-- 代理实体发现：`dds_get_matched_*`
-- RHC 读写：`dds_read`, `dds_take`
-- 实例/样本/视图状态
-- 消息分片
-- `new_*` 函数（如 `new_nn_xpack`, `new_writer`）
-- `proxy_*` 代理实体操作
+> 参考示例：`examples/multiproc_test/`（multiproc_pub.c、multiproc_sub.c、run_multiproc_test.sh）
 
-### 12.4 多进程测试编写指南
+**适用场景（以下路径无法用单元测试覆盖）**：
+- `new_*` / `proxy_*` 系列函数（需要远程对端触发）
+- 代理实体发现和匹配：`dds_get_matched_*`
+- RHC 读写：`dds_read`, `dds_take`、实例/样本/视图状态
+- 消息分片、可靠传输重传逻辑
 
-**适用场景**：
-- `new_*` 路径（需要远程对端触发）
-- 跨进程通信路径
-- 代理实体发现和匹配
-- 消息可靠传输重传逻辑
-
-**添加新测试步骤**：
-
-1. **发布端** (`multiproc_pub.c`)：
-```c
-// 在 run_pub_tests() 中添加新场景
-void test_your_scenario(dds_entity_t participant) {
-    dds_entity_t topic = dds_create_topic(participant, ...);
-    dds_entity_t writer = dds_create_writer(participant, topic, ...);
-    
-    // 发送数据触发目标代码路径
-    YourType sample = {...};
-    dds_write(writer, &sample);
-    
-    // 等待订阅端确认
-    dds_sleepfor(DDS_MSECS(100));
-}
-```
-
-2. **订阅端** (`multiproc_sub.c`)：
-```c
-// 在 run_sub_tests() 中添加对应验证
-void verify_your_scenario(dds_entity_t participant) {
-    dds_entity_t topic = dds_create_topic(participant, ...);
-    dds_entity_t reader = dds_create_reader(participant, topic, ...);
-    
-    // 等待并读取数据
-    void *samples[1];
-    dds_sample_info_t infos[1];
-    int32_t n = dds_take(reader, samples, infos, 1, 1);
-    assert(n == 1);
-}
-```
-
-3. **更新运行脚本** (`run_multiproc_test.sh`)：
-```bash
-# 如果需要特殊参数，在脚本中添加
-```
-
-4. **运行验证**：
-```bash
-./examples/multiproc_test/run_multiproc_test.sh
-./scripts/test.sh --COVERAGE=on  # 检查覆盖率提升
-```
+**添加新测试**：
+1. 在 `multiproc_pub.c` 的 `run_pub_tests()` 添加发布端测试函数
+2. 在 `multiproc_sub.c` 的 `run_sub_tests()` 添加对应验证函数
+3. 如需特殊参数，更新 `run_multiproc_test.sh`
+4. 运行验证：`./examples/multiproc_test/run_multiproc_test.sh`
 
 ---
 
 ## 13. 常见问题
+
+### 13.1 快速速查表
 
 | 问题 | 解决方案 |
 |------|----------|
@@ -662,6 +601,7 @@ void verify_your_scenario(dds_entity_t participant) {
 | undefined reference 链接错误 | 使用 `reconfigure=true`，或手动运行 `cmake -DENABLE_COVERAGE=on ..` |
 | **`#include 源文件.c` 后调用库函数找不到数据** | 见 13.4 符号隔离陷阱 |
 | **Stub 后测试超时/卡死/段错误** | 见 13.5 Stub 全局副作用 |
+| **条件分支无法触发（无公开 API 创建实体）** | 见 1.4 Test-Only 函数封装条件 |
 
 ### 13.2 编码注意事项
 
@@ -841,11 +781,8 @@ void *stub = set_stub((void *)dds_handle_is_closed, (void *)always_return_true);
 
 ### 14.1 覆盖率达标
 
-| 档位 | 行 | 函数 | 分支 |
-|------|-----|------|------|
-| `low` | >= 60% | >= 70% | >= 50% |
-| `mid` | >= 75% | >= 85% | >= 65% |
-| `high` | >= 90% | >= 95% | >= 80% |
+- [ ] 可测试范围内无遗漏（已穷举所有可达路径）
+- [ ] 无法覆盖的项已记录原因并告知用户
 
 ### 14.2 通用条件
 

@@ -1,3 +1,8 @@
+---
+name: lizi-git
+description: Git 提交规范技能。提交代码、写 commit message 时加载，确保格式统一简洁。
+---
+
 # Git 提交规范
 
 ## 提交信息格式

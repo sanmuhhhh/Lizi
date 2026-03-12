@@ -7,7 +7,6 @@ import re
 import random
 import argparse
 import json
-import hashlib
 from datetime import datetime
 from typing import Dict
 
@@ -125,87 +124,24 @@ def random_memory():
     return None
 
 
-def semantic_search_memories(query, top_k=5):
-    """使用语义搜索查找相关记忆（含重要性排序）"""
-    try:
-        from embedding_utils import (
-            load_index,
-            is_index_stale,
-            build_index,
-            semantic_search,
-            get_memory_files,
-        )
-    except ImportError:
-        # 尝试从同目录导入
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from embedding_utils import (
-            load_index,
-            is_index_stale,
-            build_index,
-            semantic_search,
-            get_memory_files,
-        )
+def bm25_search_memories(query, top_k=5):
+    """使用 BM25 进行模糊语义搜索（纯标准库，零依赖）"""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from bm25_utils import BM25
 
-    # 检查索引是否存在且有效
-    memory_files = get_memory_files(MEMORIES_DIR)
-
-    if is_index_stale(INDEX_DIR, memory_files):
-        print("索引需要更新，正在重建...", file=sys.stderr)
-        index_data = build_index(MEMORIES_DIR, INDEX_DIR)
-    else:
-        index_data = load_index(INDEX_DIR)
-
-    if index_data is None or len(index_data.get("chunks", [])) == 0:
-        print("索引为空或无法加载，尝试重建...", file=sys.stderr)
-        index_data = build_index(MEMORIES_DIR, INDEX_DIR)
-
-    if index_data is None or len(index_data.get("chunks", [])) == 0:
+    sections = get_all_sections()
+    if not sections:
         return []
 
-    access_log = load_access_log()
+    bm25 = BM25(sections)
+    results = bm25.search(query, top_k=top_k, threshold=0.0)
 
-    results = semantic_search(
-        query,
-        index_data["embeddings"],
-        index_data["chunks"],
-        top_k=top_k * 2,
-        threshold=0.3,
-    )
+    return [sections[doc_id] for doc_id, score in results if score > 0]
 
-    from embedding_utils import calculate_chunk_importance
 
-    ranked_results = []
-    for r in results:
-        chunk_hash = hashlib.sha256(r.get("text", "").encode()).hexdigest()[:16]
-
-        importance = calculate_chunk_importance(
-            {"text": r.get("text", ""), "hash": chunk_hash},
-            access_log,
-            semantic_score=r.get("score", 0.5),
-        )
-
-        combined_score = importance
-
-        update_access_record(chunk_hash, access_log)
-
-        ranked_results.append(
-            {**r, "importance": importance, "combined_score": combined_score}
-        )
-
-    ranked_results.sort(key=lambda x: x["combined_score"], reverse=True)
-
-    access_log = prune_access_log(access_log)
-    save_access_log(access_log)  # Don't reassign - function returns None
-
-    top_results = ranked_results[:top_k]
-
-    formatted_results = []
-    for r in top_results:
-        category = r.get("category", "unknown")
-        text = r.get("text", "")
-        formatted_results.append(f"【{category}】{r.get('section', '')}\n{text}")
-
-    return formatted_results
+# 保留旧函数名作为别名，兼容外部调用
+def semantic_search_memories(query, top_k=5):
+    return bm25_search_memories(query, top_k=top_k)
 
 
 def main():

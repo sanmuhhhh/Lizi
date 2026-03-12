@@ -66,7 +66,7 @@ bash ~/.config/lizi/install.sh
 ## 卸载
 
 ```bash
-bash ~/.config/lizi/uninstall.sh
+bash ~/.config/lizi/install.sh --uninstall
 ```
 
 > 记忆数据保留在 `~/.config/lizi/memories/`，不会被卸载影响。

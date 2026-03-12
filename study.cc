@@ -611,13 +611,20 @@ p->next->prev need p->prev so answer is D
 //
 // Answer:
 int FindKthFromEnd(LinkList list, int k) {
-    // TODO: use two pointers p and q
-    // step 1: move p forward k steps from list->next
-    // step 2: if p is NULL before k steps, return 0 (list too short)
-    // step 3: move p and q together until p reaches NULL
-    // step 4: q->data is the answer, printf and return 1
-
-    return 0;
+    LNode *p = list->next, *q = list->next;
+    // step 1: p 先走 k 步
+    for (int i = 0; i < k; i++) {
+        if (!p) return 0;  // 链表长度不足 k
+        p = p->next;
+    }
+    // step 2: p、q 同步走，直到 p 为 NULL
+    while (p) {
+        p = p->next;
+        q = q->next;
+    }
+    // 此时 q 就是倒数第 k 个节点
+    printf("%d\n", q->data);
+    return 1;
 }
 
 // [Q8] 2012 408
@@ -628,6 +635,31 @@ int FindKthFromEnd(LinkList list, int k) {
 // the starting node of their common suffix.
 //
 // Answer:
+// 1. 分别求两链表长度 len1、len2
+// 2. 长的先走 |len1-len2| 步，对齐尾部
+// 3. 同步走，第一个地址相同的节点就是公共后缀起点
+LNode* FindCommonSuffix(LinkList str1, LinkList str2) {
+    // 求长度
+    int len1 = 0, len2 = 0;
+    LNode *p = str1->next, *q = str2->next;
+    while (p) { len1++; p = p->next; }
+    while (q) { len2++; q = q->next; }
+
+    // 重置，长的先走
+    p = str1->next;
+    q = str2->next;
+    if (len1 > len2)
+        for (int i = 0; i < len1 - len2; i++) p = p->next;
+    else
+        for (int i = 0; i < len2 - len1; i++) q = q->next;
+
+    // 同步走找交点（比较地址，不是值）
+    while (p && q && p != q) {
+        p = p->next;
+        q = q->next;
+    }
+    return p;  // NULL 表示无公共后缀
+}
 
 // [Q9] Custom
 // A non-empty singly linked list with head node has an UNKNOWN length.
@@ -644,8 +676,11 @@ int FindKthFromEnd(LinkList list, int k) {
 //
 // Answer:
 /*
-
-
+B. p always points to the middle node (ceil(n/2)-th)
+- q 走 2 步，p 走 1 步，q 到头时 p 正好在中间
+- A 错：p 在中间不在末尾
+- C 错：有环时 q 会追上 p，两者会相遇
+- D 错：此代码遇到环会死循环，无法检测
 */
 
 // [Q10] Custom
@@ -670,7 +705,7 @@ int FindKthFromEnd(LinkList list, int k) {
 // C. Multicast discovery requires TCP, so UDP cannot be used
 // D. UDP cannot recover loss even if the app adds reliability/ordering
 //
-// Answer:
+// Answer:B
 
 // [Q12] Custom (Networking)
 // For a TCP connection, which combination is valid during slow start and congestion avoidance?
@@ -679,4 +714,4 @@ int FindKthFromEnd(LinkList list, int k) {
 // C. cwnd grows linearly in slow start; doubles in congestion avoidance
 // D. cwnd stays constant until ssthresh is reached
 //
-// Answer:
+// Answer:B
